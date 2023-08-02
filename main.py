@@ -1,35 +1,55 @@
-import pika
+#  import json
+#  from fastapi import FastAPI
+#  from elasticsearch_dsl import Search
+#  from elasticsearch import AsyncElasticsearch
+#
+#  app = FastAPI()
+#
+#  es = AsyncElasticsearch(
+#      "https://localhost:9000",
+#  )
+#
+#
+#  @app.post('/search')
+#  async def search(query: str):
+#      s = Search(using=es, index='my_index').query('match', name=query)
+#      response = await s.execute()
+#      return response.to_dict()
 import os
 import sys
-from elasticsearch import Elasticsearch
-# import asyncio
-# from fastapi import FastAPI
+import asyncio
+import aio_pika
 
-es = Elasticsearch(
-    "https://localhost:9000",
-)
+num_of_async_proccesing_messages = 10
 
 
-def main():
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost'))
-    channel = connection.channel()
+async def main() -> None:
+    connection = await aio_pika.connect_robust(
+        "amqp://guest:guest@127.0.0.1/",
+    )
 
-    channel.queue_declare(queue='pika_queue')
+    queue_name = "test_queue"
 
-    def callback(ch, method, properties, body):
-        print(f" [x] Received {body}")
+    async with connection:
+        channel = await connection.channel()
 
-    channel.basic_consume(
-        queue='pika_queue', on_message_callback=callback, auto_ack=True)
+        await channel.set_qos(prefetch_count=num_of_async_proccesing_messages)
 
-    print(' [*] Waiting for messages. To exit press CTRL+C')
-    channel.start_consuming()
+        queue = await channel.declare_queue(queue_name, auto_delete=False)
+
+        async with queue.iterator() as queue_iter:
+            print(' [*] Waiting for messages. To exit press CTRL+C')
+            async for message in queue_iter:
+                async with message.process():
+                    print(message.body.decode())
+
+                    if queue.name in message.body.decode():
+                        break
 
 
 if __name__ == '__main__':
     try:
-        main()
+        asyncio.run(main())
     except KeyboardInterrupt:
         print('Interrupted')
         try:
