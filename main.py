@@ -23,15 +23,11 @@ es = AsyncElasticsearch(
 )
 
 
-async def consume(queue):
-    async with queue.iterator() as queue_iter:
-        print(' [*] Waiting for messages. To exit press CTRL+C')
-        async for message in queue_iter:
-            async with message.process():
-                print(message.body.decode())
-
-                if queue.name in message.body.decode():
-                    break
+async def process_message(
+    message: aio_pika.abc.AbstractIncomingMessage,
+) -> None:
+    async with message.process():
+        print(message.body.decode())
 
 
 async def main() -> None:
@@ -41,10 +37,24 @@ async def main() -> None:
 
     queue_name = "test_queue"
     async with connection:
+
+        # Creating channel
         channel = await connection.channel()
+
+        # Maximum message count which will be processing at the same time.
         await channel.set_qos(prefetch_count=num_of_async_processing_messages)
+
+        # Declaring queue
         queue = await channel.declare_queue(queue_name, auto_delete=False)
-        await consume(queue)
+        await queue.consume(process_message)
+
+        print('[*] Waiting for messages. To exit press CTRL+C')
+
+        try:
+            # Wait until terminate
+            await asyncio.Future()
+        finally:
+            await connection.close()
 
 
 if __name__ == '__main__':
