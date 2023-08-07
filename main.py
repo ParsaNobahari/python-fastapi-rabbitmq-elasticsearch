@@ -9,6 +9,7 @@
 
 import os
 import sys
+# import json
 import asyncio
 import aio_pika
 from fastapi import FastAPI
@@ -27,6 +28,10 @@ async def process_message(
     message: aio_pika.abc.AbstractIncomingMessage,
 ) -> None:
     async with message.process():
+        # data = message.body.decode()
+        # json_data = json.loads(data)
+        # await es.index(
+        #     index='data_index', doc_type='json', body=json_data)
         print(message.body.decode())
 
 
