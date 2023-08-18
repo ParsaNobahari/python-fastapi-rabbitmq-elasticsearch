@@ -1,15 +1,5 @@
-# import json
-# from elasticsearch_dsl import Search
-
-# @app.post('/search')
-# async def search(query: str):
-#     s = Search(using=es, index='my_index').query('match', name=query)
-#     response = await s.execute()
-#     return response.to_dict()
-
 import os
 import sys
-# import json
 import asyncio
 import aio_pika
 from fastapi import FastAPI
@@ -19,20 +9,26 @@ num_of_async_processing_messages = 10
 
 app = FastAPI()
 
-es = AsyncElasticsearch(
-    "https://localhost:9000",
-)
+es = AsyncElasticsearch(hosts="elastic:q7+ynUZu*iU=22jLcDrf@localhost:9200/")
+
+
+@app.post('/search')
+async def search(query: str):
+    s = AsyncElasticsearch(
+        using=es, index='my_index').query('match', name=query)
+    response = await s.execute()
+    return response.to_dict()
 
 
 async def process_message(
     message: aio_pika.abc.AbstractIncomingMessage,
 ) -> None:
     async with message.process():
-        # data = message.body.decode()
-        # json_data = json.loads(data)
-        # await es.index(
-        #     index='data_index', doc_type='json', body=json_data)
-        print(message.body.decode())
+        data = message.body.decode()
+        # json_data = json.loads(data) # leftover code
+        await es.index(
+            index='my_index', doc_type='_doc', document=data)
+        print("received new data:\n" + data)
 
 
 async def main() -> None:
