@@ -31,3 +31,4 @@ docker run --rm -it my-es-image /bin/bash
 ```
 docker run --rm -p 9200:9200 my-es-image
 ```
+
